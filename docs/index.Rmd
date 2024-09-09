@@ -1,0 +1,144 @@
+---
+title: Introduction to Fitting the Continuous Response Model (CRM) Using the EstCRM Package
+subtitle:
+author:
+  name: Cengiz Zopluoglu
+  affiliation: University of Oregon
+date: 09/9/2024
+output: 
+  html_document:
+    keep_md: false
+    theme: journal
+    highlight: haddock
+    code_folding: show
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+always_allow_html: true
+urlcolor: blue
+mainfont: cochineal
+sansfont: Fira Sans
+monofont: Fira Code ## Although, see: https://tex.stackexchange.com/q/294362
+
+## Automatically knit to both formats:
+knit: (function(inputFile, encoding) {
+ rmarkdown::render(inputFile, encoding = encoding, 
+ output_format = 'all') 
+ })
+---
+
+```{r klippy, echo=FALSE, include=TRUE}
+klippy::klippy(position=c('top','right'),color='#33C1FF')
+```
+
+
+<style>
+.list-group-item.active, .list-group-item.active:focus, .list-group-item.active:hover {
+    z-index: 2;
+    color: #fff;
+    background-color: #33C1FF;
+    border-color: #97CAEF;
+}
+
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(comment = "",fig.align='center',message = FALSE,warning = FALSE)
+require(here)
+require(ggplot2)
+require(plot3D)
+require(kableExtra)
+require(knitr)
+require(giski)
+require(magick)
+options(scipen=99)
+
+```
+
+`r paste('[Updated:',format(Sys.time(),'%a, %b %d, %Y - %H:%M:%S'),']')`
+
+<font color="black">
+
+For a more detailed introduction to the Continuous Response Model (CRM), you can visit [this webpage](https://cengiz.me/posts/crm-stan/). The webpage includes a thorough explanation of the model, theoretical background, and step-by-step instructions for fitting the model using Stan. 
+
+This tutorial will focus on demonstrating how to use the `EstCRM` package for parameter estimation.
+
+# 1. Overview 
+
+The `EstCRM` package provides functions to estimate parameters for the Samejima's Continuous Response Model (CRM) via marginal maximum likelihood estimation (MMLE) using the EM algorithm. The package allows users to estimate item and person parameters, evaluate item fit, draw 3D item response curves, and simulate data.
+
+# 2. Installation and Setup
+
+Before starting, make sure the `EstCRM` package is installed and loaded in your R environment. 
+
+```{r}
+
+# Install the package (if needed)
+# install.packages("EstCRM")
+
+# Load the package
+
+require(EstCRM)
+
+```
+
+# 3. Estimating Item Parameters with the `EstCRMitem()` function
+
+Let's start by estimating item parameters using the dataset EPIA, which contains five items scored on a continuous scale. The data is part of the package. This dataset came from a published study and was kindly provided by Dr. Ferrando. A group of 1,033 undergraduate students were asked to check on a 112 mm line segment with two end points (almost never, almost always) using their own judgement for the five items taken from the Spanish version of the EPI-A impulsivity subscale. The direct item score was the distance in mm of the check mark from the left end point ([Ferrando, 2002](https://doi.org/10.1207/s15327906mbr3704_05)).
+
+```{r}
+
+# Load the dataset
+data(EPIA)
+head(EPIA)
+
+# Estimate the item parameters using the EM algorithm
+
+item_params <- EstCRMitem(data        = EPIA, # name of the data object
+                          max.item    = c(112, 112, 112, 112, 112), # maximum possible scores for each item
+                          min.item    = c(0, 0, 0, 0, 0), # minimum possible scores for each item
+                          max.EMCycle = 500, # maximum number of EM Cycles used in the iteration
+                          converge    = 0.01) # a criteria value to stop the iterations
+```
+
+```{r}
+# Extract the item parameter estimates
+
+item_params$param
+```
+
+# 4. Estimating Person Parameters with the `EstCRMperson` function
+
+After estimating item parameters, we can estimate person ability parameters (theta) using the `EstCRMperson` function. The person parameters can be computed once the item parameters are available.
+
+```{r}
+
+person_params <- EstCRMperson(data     = EPIA, 
+                              ipar     = item_params$param, 
+                              min.item = c(0, 0, 0, 0, 0), 
+                              max.item = c(112, 112, 112, 112, 112))
+
+head(person_params$thetas)
+
+```
+
+# 5. Item residuals using the `fitCRM` function
+
+We can compute standardized item fit residual statistics using the `fitCRM` function. This helps evaluate how well the model fits the data.
+
+```{r}
+
+fit_results <- fitCRM(data       = EPIA, 
+                      ipar       = item_params$param, 
+                      est.thetas = person_params, 
+                      max.item   = c(112, 112, 112, 112, 112), 
+                      group      = 10)
+
+fit_results$fit.stat
+```
+
+
+</font>
+
+
